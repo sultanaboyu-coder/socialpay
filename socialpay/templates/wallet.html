@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wallet - Social Pay</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="container">
+            <div class="logo">💰 Social Pay</div>
+            <button class="mobile-menu-btn" onclick="toggleMobileMenu()">☰</button>
+            <ul class="nav-links">
+                <li><a href="/dashboard">Dashboard</a></li>
+                <li><a href="/tasks">Tasks</a></li>
+                <li><a href="/wallet">Wallet</a></li>
+                <li><a href="/referrals">Referrals</a></li>
+                <li><a href="#" class="logout-btn">Logout</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <div class="container" style="margin-top: 30px;">
+        <h1 style="color: white; margin-bottom: 30px;">My Wallet 💳</h1>
+
+        <div class="grid grid-2">
+            <div class="stat-card" style="background: linear-gradient(135deg, #667eea, #764ba2);">
+                <div class="stat-value" id="nairaBalance">₦0.00</div>
+                <div class="stat-label">Naira Balance</div>
+            </div>
+
+            <div class="stat-card" style="background: linear-gradient(135deg, #f093fb, #f5576c);">
+                <div class="stat-value" id="dollarBalance">$0.00</div>
+                <div class="stat-label">USDT Balance</div>
+            </div>
+        </div>
+
+        <div class="grid grid-3" style="margin-top: 30px;">
+            <div class="card text-center">
+                <div style="font-size: 32px; font-weight: bold; color: var(--secondary);" id="completedTasks">0</div>
+                <p style="color: #666; margin-top: 10px;">Completed Tasks</p>
+            </div>
+
+            <div class="card text-center">
+                <div style="font-size: 32px; font-weight: bold; color: var(--warning);" id="pendingTasks">0</div>
+                <p style="color: #666; margin-top: 10px;">Pending Tasks</p>
+            </div>
+
+            <div class="card text-center">
+                <div style="font-size: 32px; font-weight: bold; color: var(--primary);" id="referralCount">0</div>
+                <p style="color: #666; margin-top: 10px;">Referrals</p>
+            </div>
+        </div>
+
+        <div class="grid grid-2" style="margin-top: 30px;">
+            <div class="card">
+                <h3 class="card-title">Quick Actions</h3>
+                <div style="display: flex; flex-direction: column; gap: 15px;">
+                    <a href="/transfer" class="btn btn-primary">Transfer Money</a>
+                    <a href="/withdrawal" class="btn btn-secondary">Withdraw Funds</a>
+                    <button class="btn btn-primary" onclick="showPaymentDetails()">Payment Details</button>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3 class="card-title">Referral Earnings</h3>
+                <div style="margin-bottom: 15px;">
+                    <p style="color: #666; margin-bottom: 5px;">Naira Earnings</p>
+                    <div style="font-size: 24px; font-weight: bold; color: var(--secondary);" id="refNaira">₦0.00</div>
+                </div>
+                <div>
+                    <p style="color: #666; margin-bottom: 5px;">USDT Earnings</p>
+                    <div style="font-size: 24px; font-weight: bold; color: var(--secondary);" id="refDollar">$0.00</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card" style="margin-top: 30px;">
+            <h3 class="card-title">Payment Details</h3>
+            <div id="paymentDetailsContainer">
+                <p style="color: #666;">Loading...</p>
+            </div>
+            <button class="btn btn-primary" style="margin-top: 20px;" onclick="updatePaymentDetails()">
+                Update Payment Details
+            </button>
+        </div>
+    </div>
+
+    <script src="/static/js/app.js"></script>
+    <script>
+        async function loadWallet() {
+            const token = localStorage.getItem('token');
+
+            try {
+                const response = await fetch('/api/user/wallet', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const wallet = await response.json();
+
+                document.getElementById('nairaBalance').textContent = `₦${wallet.naira.toFixed(2)}`;
+                document.getElementById('dollarBalance').textContent = `$${wallet.dollar.toFixed(2)}`;
+                document.getElementById('completedTasks').textContent = wallet.completed_tasks;
+                document.getElementById('pendingTasks').textContent = wallet.pending_tasks;
+                document.getElementById('referralCount').textContent = wallet.referral_count;
+                document.getElementById('refNaira').textContent = `₦${wallet.referral_naira.toFixed(2)}`;
+                document.getElementById('refDollar').textContent = `$${wallet.referral_dollar.toFixed(2)}`;
+
+            } catch (error) {
+                console.error('Error loading wallet:', error);
+            }
+        }
+
+        async function showPaymentDetails() {
+            const token = localStorage.getItem('token');
+
+            try {
+                const response = await fetch('/api/user/payment-details', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                if (response.ok) {
+                    const details = await response.json();
+                    document.getElementById('paymentDetailsContainer').innerHTML = `
+                        <div style="background: var(--light); padding: 15px; border-radius: 8px;">
+                            <p><strong>Type:</strong> ${details.payment_type}</p>
+                            <p style="margin-top: 10px;"><strong>Details:</strong><br>${details.details}</p>
+                            <p style="margin-top: 10px; color: #666; font-size: 14px;">
+                                Updated: ${new Date(details.updated_at).toLocaleString()}
+                            </p>
+                        </div>
+                    `;
+                } else {
+                    document.getElementById('paymentDetailsContainer').innerHTML = `
+                        <div class="alert alert-warning">
+                            No payment details set. Click "Update Payment Details" to add them.
+                        </div>
+                    `;
+                }
+
+            } catch (error) {
+                console.error('Error loading payment details:', error);
+            }
+        }
+
+        function updatePaymentDetails() {
+            const paymentType = prompt('Enter payment type:\n\n1. Bank Account\n2. Crypto Wallet\n\nEnter your choice:');
+            
+            if (!paymentType) return;
+
+            const details = prompt('Enter payment details:\n\nFor Bank: Bank Name, Account Number, Account Name\nFor Crypto: Wallet Address');
+
+            if (!details) return;
+
+            const token = localStorage.getItem('token');
+
+            fetch('/api/user/payment-details', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    payment_type: paymentType === '1' ? 'Bank Account' : 'Crypto Wallet',
+                    details: details
+                })
+            })
+            .then(res => res.json())
+            .then(data => {
+                alert('Payment details updated successfully! ✅');
+                showPaymentDetails();
+            })
+            .catch(err => alert('Error updating payment details'));
+        }
+
+        loadWallet();
+        showPaymentDetails();
+    </script>
+</body>
+</html>

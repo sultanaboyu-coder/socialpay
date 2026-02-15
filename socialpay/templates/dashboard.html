@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Social Pay</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="container">
+            <div class="logo">💰 Social Pay</div>
+            <button class="mobile-menu-btn" onclick="toggleMobileMenu()">☰</button>
+            <ul class="nav-links">
+                <li><a href="/dashboard">Dashboard</a></li>
+                <li><a href="/tasks">Tasks</a></li>
+                <li><a href="/wallet">Wallet</a></li>
+                <li><a href="/referrals">Referrals</a></li>
+                <li><a href="#" class="logout-btn">Logout</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <div class="container" style="margin-top: 30px;">
+        <h1 style="color: white; margin-bottom: 30px;">Dashboard</h1>
+
+        <div id="user-info" class="card" style="margin-bottom: 30px;">
+            <h2 class="card-title">Welcome, <span id="userName">Loading...</span>! 👋</h2>
+            <p>Your User ID: <strong id="userId"></strong></p>
+        </div>
+
+        <div class="grid grid-3">
+            <div class="stat-card" style="background: linear-gradient(135deg, #667eea, #764ba2);">
+                <div class="stat-value" id="nairaBalance">₦0.00</div>
+                <div class="stat-label">Naira Balance</div>
+            </div>
+
+            <div class="stat-card" style="background: linear-gradient(135deg, #f093fb, #f5576c);">
+                <div class="stat-value" id="dollarBalance">$0.00</div>
+                <div class="stat-label">USDT Balance</div>
+            </div>
+
+            <div class="stat-card" style="background: linear-gradient(135deg, #4facfe, #00f2fe);">
+                <div class="stat-value" id="completedTasks">0</div>
+                <div class="stat-label">Completed Tasks</div>
+            </div>
+        </div>
+
+        <div class="grid grid-2" style="margin-top: 30px;">
+            <div class="card">
+                <h3 class="card-title">Quick Actions</h3>
+                <div style="display: flex; flex-direction: column; gap: 15px;">
+                    <a href="/tasks" class="btn btn-primary">Browse Tasks</a>
+                    <a href="/wallet" class="btn btn-secondary">My Wallet</a>
+                    <a href="/transfer" class="btn btn-primary">Transfer Money</a>
+                    <a href="/withdrawal" class="btn btn-secondary">Withdraw</a>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3 class="card-title">Recent Activity</h3>
+                <div id="recentActivity">
+                    <p style="color: #666;">No recent activity</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="card" style="margin-top: 30px;">
+            <h3 class="card-title">Referral Link</h3>
+            <div style="display: flex; gap: 10px; align-items: center;">
+                <input type="text" id="refLink" class="form-control" readonly>
+                <button class="btn btn-primary" onclick="copyRefLink()">Copy</button>
+            </div>
+            <p style="margin-top: 10px; color: #666;">
+                Share your link and earn ₦30 when friends complete 10 tasks!
+            </p>
+        </div>
+    </div>
+
+    <script src="/static/js/app.js"></script>
+    <script>
+        async function loadDashboard() {
+            const token = localStorage.getItem('token');
+            if (!token) {
+                window.location.href = '/login';
+                return;
+            }
+
+            try {
+                // Load profile
+                const profileRes = await fetch('/api/user/profile', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const profile = await profileRes.json();
+                
+                document.getElementById('userName').textContent = profile.name;
+                document.getElementById('userId').textContent = profile.user_id;
+                
+                // Load wallet
+                const walletRes = await fetch('/api/user/wallet', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const wallet = await walletRes.json();
+                
+                document.getElementById('nairaBalance').textContent = `₦${wallet.naira.toFixed(2)}`;
+                document.getElementById('dollarBalance').textContent = `$${wallet.dollar.toFixed(2)}`;
+                document.getElementById('completedTasks').textContent = wallet.completed_tasks;
+                
+                // Set referral link
+                const baseUrl = window.location.origin;
+                document.getElementById('refLink').value = `${baseUrl}/register?ref=${profile.user_id}`;
+                
+            } catch (error) {
+                console.error('Error loading dashboard:', error);
+                if (error.message.includes('401')) {
+                    localStorage.removeItem('token');
+                    window.location.href = '/login';
+                }
+            }
+        }
+
+        function copyRefLink() {
+            const refLink = document.getElementById('refLink');
+            refLink.select();
+            document.execCommand('copy');
+            alert('Referral link copied! 📋');
+        }
+
+        loadDashboard();
+    </script>
+</body>
+</html>

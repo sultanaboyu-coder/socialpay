@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Support - Social Pay</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="container">
+            <div class="logo">💰 Social Pay</div>
+            <button class="mobile-menu-btn" onclick="toggleMobileMenu()">☰</button>
+            <ul class="nav-links">
+                <li><a href="/dashboard">Dashboard</a></li>
+                <li><a href="/tasks">Tasks</a></li>
+                <li><a href="/wallet">Wallet</a></li>
+                <li><a href="/support">Support</a></li>
+                <li><a href="#" class="logout-btn">Logout</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <div class="container" style="margin-top: 30px;">
+        <h1 style="color: white; margin-bottom: 30px;">Support 💬</h1>
+
+        <div class="grid grid-2">
+            <div class="card">
+                <h3 class="card-title">Contact Information</h3>
+                
+                <div style="margin-bottom: 20px;">
+                    <h4>Telegram Support</h4>
+                    <a href="https://t.me/Socialpaysupport" target="_blank" class="btn btn-primary btn-block">
+                        Contact @Socialpaysupport
+                    </a>
+                </div>
+
+                <div style="margin-bottom: 20px;">
+                    <h4>Join Our Community</h4>
+                    <a href="https://t.me/Socialearningpay" target="_blank" class="btn btn-secondary btn-block">
+                        Telegram Group
+                    </a>
+                </div>
+
+                <div>
+                    <h4>Tutorial Channel</h4>
+                    <a href="https://t.me/socialpaychannel" target="_blank" class="btn btn-primary btn-block">
+                        Telegram Channel
+                    </a>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3 class="card-title">Send Message</h3>
+                
+                <form id="supportForm" onsubmit="sendMessage(event)">
+                    <div class="form-group">
+                        <label class="form-label">Your Message</label>
+                        <textarea id="message" class="form-control" rows="6" required 
+                                  placeholder="Describe your issue or question..."></textarea>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary btn-block" id="sendBtn">
+                        Send Message
+                    </button>
+                </form>
+
+                <div id="alert-container" style="margin-top: 20px;"></div>
+            </div>
+        </div>
+
+        <div class="card" style="margin-top: 30px;">
+            <h3 class="card-title">Frequently Asked Questions</h3>
+            
+            <div style="margin-bottom: 20px;">
+                <h4>How do I complete a task?</h4>
+                <p style="color: #666;">
+                    1. Browse available tasks<br>
+                    2. Click on a task and visit the link<br>
+                    3. Complete the action (like, follow, etc.)<br>
+                    4. Take a screenshot as proof<br>
+                    5. Submit the screenshot<br>
+                    6. Wait for admin approval
+                </p>
+            </div>
+
+            <div style="margin-bottom: 20px;">
+                <h4>How long does withdrawal take?</h4>
+                <p style="color: #666;">
+                    Withdrawals are typically processed within 1-24 hours after admin approval.
+                </p>
+            </div>
+
+            <div style="margin-bottom: 20px;">
+                <h4>How do referrals work?</h4>
+                <p style="color: #666;">
+                    Share your referral link. When your friend registers and completes 10 tasks, 
+                    you automatically receive ₦30 in your wallet!
+                </p>
+            </div>
+
+            <div>
+                <h4>What are the withdrawal fees?</h4>
+                <p style="color: #666;">
+                    Naira: ₦100 fee (minimum ₦1,000)<br>
+                    USDT: $0.10 fee (minimum $1)
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/js/app.js"></script>
+    <script>
+        async function sendMessage(e) {
+            e.preventDefault();
+
+            const message = document.getElementById('message').value;
+            const btn = document.getElementById('sendBtn');
+            const token = localStorage.getItem('token');
+
+            btn.disabled = true;
+            btn.textContent = 'Sending...';
+
+            try {
+                const response = await fetch('/api/support/message', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ message })
+                });
+
+                if (response.ok) {
+                    const alertDiv = document.createElement('div');
+                    alertDiv.className = 'alert alert-success';
+                    alertDiv.textContent = 'Message sent successfully! ✅ We will reply soon.';
+                    document.getElementById('alert-container').innerHTML = '';
+                    document.getElementById('alert-container').appendChild(alertDiv);
+
+                    document.getElementById('supportForm').reset();
+                } else {
+                    throw new Error('Failed to send message');
+                }
+
+            } catch (error) {
+                const alertDiv = document.createElement('div');
+                alertDiv.className = 'alert alert-danger';
+                alertDiv.textContent = 'Error sending message. Please try again.';
+                document.getElementById('alert-container').innerHTML = '';
+                document.getElementById('alert-container').appendChild(alertDiv);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Send Message';
+            }
+        }
+    </script>
+</body>
+</html>
