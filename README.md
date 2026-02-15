@@ -1,0 +1,1 @@
+Full-stack earning platform with FastAPI backend and responsive web interface.
