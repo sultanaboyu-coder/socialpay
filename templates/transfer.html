@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Transfer - Social Pay</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="container">
+            <div class="logo">💰 Social Pay</div>
+            <button class="mobile-menu-btn" onclick="toggleMobileMenu()">☰</button>
+            <ul class="nav-links">
+                <li><a href="/dashboard">Dashboard</a></li>
+                <li><a href="/tasks">Tasks</a></li>
+                <li><a href="/wallet">Wallet</a></li>
+                <li><a href="/referrals">Referrals</a></li>
+                <li><a href="#" class="logout-btn">Logout</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <div class="container" style="margin-top: 30px;">
+        <h1 style="color: white; margin-bottom: 30px;">Transfer Money 💸</h1>
+
+        <div style="max-width: 600px; margin: 0 auto;">
+            <div class="card">
+                <div class="stat-card" style="margin-bottom: 30px;">
+                    <div class="stat-value" id="nairaBalance">₦0.00</div>
+                    <div class="stat-label">Available Balance</div>
+                </div>
+
+                <div class="alert alert-warning">
+                    <strong>Important:</strong>
+                    <ul style="margin: 10px 0 0 20px;">
+                        <li>Maximum transfer: ₦100,000</li>
+                        <li>Daily limit: 5 transfers</li>
+                        <li>PIN required for security</li>
+                    </ul>
+                </div>
+
+                <div id="alert-container"></div>
+
+                <form id="transferForm" onsubmit="handleTransfer(event)">
+                    <div class="form-group">
+                        <label class="form-label">Receiver's User ID</label>
+                        <input type="text" id="receiverId" class="form-control" required 
+                               placeholder="Enter receiver's user ID">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Amount (₦)</label>
+                        <input type="number" id="amount" class="form-control" required 
+                               placeholder="Enter amount" min="1" step="0.01">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">4-Digit PIN</label>
+                        <input type="password" id="pin" class="form-control" required 
+                               placeholder="Enter your 4-digit PIN" maxlength="4" pattern="[0-9]{4}">
+                        <small style="color: #666;">Don't have a PIN? <a href="#" onclick="createPIN()">Create one</a></small>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary btn-block" id="transferBtn">
+                        Transfer Money
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/js/app.js"></script>
+    <script>
+        async function loadBalance() {
+            const token = localStorage.getItem('token');
+
+            try {
+                const response = await fetch('/api/user/wallet', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const wallet = await response.json();
+                document.getElementById('nairaBalance').textContent = `₦${wallet.naira.toFixed(2)}`;
+            } catch (error) {
+                console.error('Error loading balance:', error);
+            }
+        }
+
+        async function createPIN() {
+            const pin = prompt('Create a 4-digit PIN (numbers only):');
+            
+            if (!pin || pin.length !== 4 || !/^\d{4}$/.test(pin)) {
+                alert('PIN must be exactly 4 digits!');
+                return;
+            }
+
+            const confirm = prompt('Confirm your PIN:');
+            
+            if (pin !== confirm) {
+                alert('PINs do not match!');
+                return;
+            }
+
+            const token = localStorage.getItem('token');
+
+            try {
+                const response = await fetch('/api/user/pin/create', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ pin })
+                });
+
+                if (response.ok) {
+                    alert('PIN created successfully! ✅');
+                } else {
+                    const error = await response.json();
+                    alert('Error: ' + error.detail);
+                }
+
+            } catch (error) {
+                alert('Error creating PIN: ' + error.message);
+            }
+        }
+
+        async function handleTransfer(e) {
+            e.preventDefault();
+
+            const receiverId = document.getElementById('receiverId').value;
+            const amount = parseFloat(document.getElementById('amount').value);
+            const pin = document.getElementById('pin').value;
+            const btn = document.getElementById('transferBtn');
+            const token = localStorage.getItem('token');
+
+            btn.disabled = true;
+            btn.textContent = 'Processing...';
+
+            try {
+                const response = await fetch('/api/user/transfer', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        receiver_id: receiverId,
+                        amount: amount,
+                        pin: pin
+                    })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.detail || 'Transfer failed');
+                }
+
+                const alertDiv = document.createElement('div');
+                alertDiv.className = 'alert alert-success';
+                alertDiv.innerHTML = `
+                    <strong>Transfer Successful! ✅</strong><br>
+                    Amount: ₦${amount.toFixed(2)}<br>
+                    To: ${receiverId}<br>
+                    Transfer ID: ${data.transfer_id}
+                `;
+                document.getElementById('alert-container').innerHTML = '';
+                document.getElementById('alert-container').appendChild(alertDiv);
+
+                document.getElementById('transferForm').reset();
+                loadBalance();
+
+            } catch (error) {
+                const alertDiv = document.createElement('div');
+                alertDiv.className = 'alert alert-danger';
+                alertDiv.textContent = error.message;
+                document.getElementById('alert-container').innerHTML = '';
+                document.getElementById('alert-container').appendChild(alertDiv);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Transfer Money';
+            }
+        }
+
+        loadBalance();
+    </script>
+</body>
+</html>

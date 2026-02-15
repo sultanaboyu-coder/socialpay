@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Withdrawal - Social Pay</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="container">
+            <div class="logo">💰 Social Pay</div>
+            <button class="mobile-menu-btn" onclick="toggleMobileMenu()">☰</button>
+            <ul class="nav-links">
+                <li><a href="/dashboard">Dashboard</a></li>
+                <li><a href="/tasks">Tasks</a></li>
+                <li><a href="/wallet">Wallet</a></li>
+                <li><a href="/referrals">Referrals</a></li>
+                <li><a href="#" class="logout-btn">Logout</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <div class="container" style="margin-top: 30px;">
+        <h1 style="color: white; margin-bottom: 30px;">Withdraw Funds 💳</h1>
+
+        <div style="max-width: 600px; margin: 0 auto;">
+            <div class="grid grid-2" style="margin-bottom: 30px;">
+                <div class="stat-card">
+                    <div class="stat-value" id="nairaBalance">₦0.00</div>
+                    <div class="stat-label">Naira Balance</div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-value" id="dollarBalance">$0.00</div>
+                    <div class="stat-label">USDT Balance</div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="alert alert-warning">
+                    <strong>Withdrawal Info:</strong>
+                    <ul style="margin: 10px 0 0 20px;">
+                        <li>Minimum Naira: ₦1,000 (Fee: ₦100)</li>
+                        <li>Minimum USDT: $1 (Fee: $0.10)</li>
+                        <li>Processing time: 1-24 hours</li>
+                    </ul>
+                </div>
+
+                <div id="alert-container"></div>
+
+                <form id="withdrawalForm" onsubmit="handleWithdrawal(event)">
+                    <div class="form-group">
+                        <label class="form-label">Currency</label>
+                        <select id="currency" class="form-control" required onchange="updateMinAmount()">
+                            <option value="naira">Naira (₦)</option>
+                            <option value="usdt">USDT ($)</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Amount</label>
+                        <input type="number" id="amount" class="form-control" required 
+                               placeholder="Enter amount" min="1" step="0.01">
+                        <small id="minAmount" style="color: #666;">Minimum: ₦1,000</small>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary btn-block" id="withdrawBtn">
+                        Request Withdrawal
+                    </button>
+                </form>
+            </div>
+
+            <div class="card" style="margin-top: 30px;">
+                <h3 class="card-title">My Withdrawals</h3>
+                <div id="withdrawalsContainer">
+                    <p style="color: #666;">Loading...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/js/app.js"></script>
+    <script>
+        async function loadWallet() {
+            const token = localStorage.getItem('token');
+
+            try {
+                const response = await fetch('/api/user/wallet', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const wallet = await response.json();
+
+                document.getElementById('nairaBalance').textContent = `₦${wallet.naira.toFixed(2)}`;
+                document.getElementById('dollarBalance').textContent = `$${wallet.dollar.toFixed(2)}`;
+
+            } catch (error) {
+                console.error('Error loading wallet:', error);
+            }
+        }
+
+        async function loadWithdrawals() {
+            const token = localStorage.getItem('token');
+
+            try {
+                const response = await fetch('/api/withdrawals/my-withdrawals', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await response.json();
+
+                const container = document.getElementById('withdrawalsContainer');
+
+                if (data.withdrawals.length === 0) {
+                    container.innerHTML = '<p style="color: #666;">No withdrawals yet</p>';
+                    return;
+                }
+
+                container.innerHTML = `
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Currency</th>
+                                <th>Amount</th>
+                                <th>Fee</th>
+                                <th>Total</th>
+                                <th>Status</th>
+                                <th>Date</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${data.withdrawals.map(w => `
+                                <tr>
+                                    <td>${w.currency.toUpperCase()}</td>
+                                    <td>${w.currency === 'naira' ? '₦' : '$'}${w.amount.toFixed(2)}</td>
+                                    <td>${w.currency === 'naira' ? '₦' : '$'}${w.fee.toFixed(2)}</td>
+                                    <td>${w.currency === 'naira' ? '₦' : '$'}${w.total.toFixed(2)}</td>
+                                    <td><span class="badge badge-${w.status === 'approved' ? 'success' : w.status === 'pending' ? 'warning' : 'danger'}">${w.status}</span></td>
+                                    <td>${new Date(w.requested_at).toLocaleDateString()}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                `;
+
+            } catch (error) {
+                console.error('Error loading withdrawals:', error);
+            }
+        }
+
+        function updateMinAmount() {
+            const currency = document.getElementById('currency').value;
+            const minAmountText = document.getElementById('minAmount');
+
+            if (currency === 'naira') {
+                minAmountText.textContent = 'Minimum: ₦1,000 (Fee: ₦100)';
+                document.getElementById('amount').min = 1000;
+            } else {
+                minAmountText.textContent = 'Minimum: $1 (Fee: $0.10)';
+                document.getElementById('amount').min = 1;
+            }
+        }
+
+        async function handleWithdrawal(e) {
+            e.preventDefault();
+
+            const currency = document.getElementById('currency').value;
+            const amount = parseFloat(document.getElementById('amount').value);
+            const btn = document.getElementById('withdrawBtn');
+            const token = localStorage.getItem('token');
+
+            btn.disabled = true;
+            btn.textContent = 'Processing...';
+
+            try {
+                const response = await fetch('/api/withdrawals/request', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ currency, amount })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.detail || 'Withdrawal request failed');
+                }
+
+                const alertDiv = document.createElement('div');
+                alertDiv.className = 'alert alert-success';
+                alertDiv.innerHTML = `
+                    <strong>Withdrawal Requested! ✅</strong><br>
+                    Amount: ${currency === 'naira' ? '₦' : '$'}${amount.toFixed(2)}<br>
+                    Fee: ${currency === 'naira' ? '₦' : '$'}${data.fee.toFixed(2)}<br>
+                    Total: ${currency === 'naira' ? '₦' : '$'}${data.total.toFixed(2)}<br>
+                    <br>
+                    Money has been deducted from your balance.<br>
+                    Please wait for admin approval.
+                `;
+                document.getElementById('alert-container').innerHTML = '';
+                document.getElementById('alert-container').appendChild(alertDiv);
+
+                document.getElementById('withdrawalForm').reset();
+                loadWallet();
+                loadWithdrawals();
+
+            } catch (error) {
+                const alertDiv = document.createElement('div');
+                alertDiv.className = 'alert alert-danger';
+                alertDiv.textContent = error.message;
+                document.getElementById('alert-container').innerHTML = '';
+                document.getElementById('alert-container').appendChild(alertDiv);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Request Withdrawal';
+            }
+        }
+
+        loadWallet();
+        loadWithdrawals();
+    </script>
+</body>
+</html>

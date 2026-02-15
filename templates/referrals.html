@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Referrals - Social Pay</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="container">
+            <div class="logo">💰 Social Pay</div>
+            <button class="mobile-menu-btn" onclick="toggleMobileMenu()">☰</button>
+            <ul class="nav-links">
+                <li><a href="/dashboard">Dashboard</a></li>
+                <li><a href="/tasks">Tasks</a></li>
+                <li><a href="/wallet">Wallet</a></li>
+                <li><a href="/referrals">Referrals</a></li>
+                <li><a href="#" class="logout-btn">Logout</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <div class="container" style="margin-top: 30px;">
+        <h1 style="color: white; margin-bottom: 30px;">Referral Program 👥</h1>
+
+        <div class="card" style="margin-bottom: 30px;">
+            <h2 class="card-title">Your Referral Link</h2>
+            <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 20px;">
+                <input type="text" id="refLink" class="form-control" readonly>
+                <button class="btn btn-primary" onclick="copyRefLink()">Copy</button>
+            </div>
+            
+            <div class="alert alert-success">
+                <strong>How it works:</strong>
+                <ul style="margin: 10px 0 0 20px;">
+                    <li>Share your referral link with friends</li>
+                    <li>They register using your link</li>
+                    <li>When they complete 10 tasks, you earn ₦30!</li>
+                    <li>Unlimited referrals - unlimited earnings! 🚀</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="grid grid-3" style="margin-bottom: 30px;">
+            <div class="stat-card">
+                <div class="stat-value" id="totalReferrals">0</div>
+                <div class="stat-label">Total Referrals</div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-value" id="earnedNaira">₦0.00</div>
+                <div class="stat-label">Earned (Naira)</div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-value" id="earnedDollar">$0.00</div>
+                <div class="stat-label">Earned (USDT)</div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3 class="card-title">My Referrals</h3>
+            <div id="referralsContainer">
+                <div class="loading"><div class="spinner"></div></div>
+            </div>
+        </div>
+
+        <div class="card" style="margin-top: 30px;">
+            <h3 class="card-title">Share Your Link</h3>
+            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                <button class="btn btn-primary" onclick="shareWhatsApp()">
+                    Share on WhatsApp
+                </button>
+                <button class="btn btn-secondary" onclick="shareTelegram()">
+                    Share on Telegram
+                </button>
+                <button class="btn btn-primary" onclick="shareTwitter()">
+                    Share on Twitter
+                </button>
+                <button class="btn btn-secondary" onclick="shareFacebook()">
+                    Share on Facebook
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/js/app.js"></script>
+    <script>
+        let referralLink = '';
+
+        async function loadReferrals() {
+            const token = localStorage.getItem('token');
+            const userId = localStorage.getItem('user_id');
+
+            try {
+                // Set referral link
+                const baseUrl = window.location.origin;
+                referralLink = `${baseUrl}/register?ref=${userId}`;
+                document.getElementById('refLink').value = referralLink;
+
+                // Load referral stats
+                const response = await fetch('/api/user/referrals', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await response.json();
+
+                document.getElementById('totalReferrals').textContent = data.total_referrals;
+                document.getElementById('earnedNaira').textContent = `₦${data.earned_naira.toFixed(2)}`;
+                document.getElementById('earnedDollar').textContent = `$${data.earned_dollar.toFixed(2)}`;
+
+                const container = document.getElementById('referralsContainer');
+
+                if (data.referrals.length === 0) {
+                    container.innerHTML = '<p style="color: #666; text-align: center; padding: 40px;">No referrals yet. Start sharing your link! 🚀</p>';
+                    return;
+                }
+
+                container.innerHTML = `
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>User ID</th>
+                                <th>Tasks Completed</th>
+                                <th>Status</th>
+                                <th>Joined</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${data.referrals.map(ref => `
+                                <tr>
+                                    <td>${ref.name}</td>
+                                    <td>${ref.user_id}</td>
+                                    <td>${ref.tasks_completed}/10</td>
+                                    <td>
+                                        ${ref.reward_paid 
+                                            ? '<span class="badge badge-success">Paid ✅</span>' 
+                                            : `<span class="badge badge-warning">In Progress (${ref.tasks_completed}/10)</span>`
+                                        }
+                                    </td>
+                                    <td>${new Date(ref.joined_at).toLocaleDateString()}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                `;
+
+            } catch (error) {
+                console.error('Error loading referrals:', error);
+                document.getElementById('referralsContainer').innerHTML = 
+                    '<p style="color: #666;">Error loading referrals</p>';
+            }
+        }
+
+        function copyRefLink() {
+            const refLink = document.getElementById('refLink');
+            refLink.select();
+            document.execCommand('copy');
+            
+            const btn = event.target;
+            const originalText = btn.textContent;
+            btn.textContent = 'Copied! ✅';
+            setTimeout(() => {
+                btn.textContent = originalText;
+            }, 2000);
+        }
+
+        function shareWhatsApp() {
+            const message = encodeURIComponent(`Join Social Pay and earn money by completing simple tasks! 💰\n\nUse my referral link:\n${referralLink}`);
+            window.open(`https://wa.me/?text=${message}`, '_blank');
+        }
+
+        function shareTelegram() {
+            const message = encodeURIComponent(`Join Social Pay and earn money! 💰\n${referralLink}`);
+            window.open(`https://t.me/share/url?url=${referralLink}&text=${message}`, '_blank');
+        }
+
+        function shareTwitter() {
+            const message = encodeURIComponent(`Join Social Pay and earn money by completing simple tasks! 💰 ${referralLink}`);
+            window.open(`https://twitter.com/intent/tweet?text=${message}`, '_blank');
+        }
+
+        function shareFacebook() {
+            window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(referralLink)}`, '_blank');
+        }
+
+        loadReferrals();
+    </script>
+</body>
+</html>
