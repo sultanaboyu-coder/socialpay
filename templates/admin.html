@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel - Social Pay</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="container">
+            <div class="logo">⚙️ Admin Panel</div>
+            <button class="mobile-menu-btn" onclick="toggleMobileMenu()">☰</button>
+            <ul class="nav-links">
+                <li><a href="/admin-panel">Dashboard</a></li>
+                <li><a href="#" class="logout-btn">Logout</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <div class="container" style="margin-top: 30px;">
+        <h1 style="color: white; margin-bottom: 30px;">Admin Dashboard</h1>
+
+        <!-- Statistics -->
+        <div class="grid grid-3" style="margin-bottom: 30px;">
+            <div class="stat-card">
+                <div class="stat-value" id="totalUsers">0</div>
+                <div class="stat-label">Total Users</div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-value" id="totalTasks">0</div>
+                <div class="stat-label">Active Tasks</div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-value" id="completedTasks">0</div>
+                <div class="stat-label">Completed Tasks</div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-value" id="pendingSubmissions">0</div>
+                <div class="stat-label">Pending Submissions</div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-value" id="pendingWithdrawals">0</div>
+                <div class="stat-label">Pending Withdrawals</div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-value" id="totalNaira">₦0</div>
+                <div class="stat-label">Total Naira</div>
+            </div>
+        </div>
+
+        <!-- Pending Submissions -->
+        <div class="card" style="margin-bottom: 30px;">
+            <h3 class="card-title">Pending Task Submissions</h3>
+            <div id="submissionsContainer">
+                <div class="loading"><div class="spinner"></div></div>
+            </div>
+        </div>
+
+        <!-- Pending Withdrawals -->
+        <div class="card" style="margin-bottom: 30px;">
+            <h3 class="card-title">Pending Withdrawals</h3>
+            <div id="withdrawalsContainer">
+                <div class="loading"><div class="spinner"></div></div>
+            </div>
+        </div>
+
+        <!-- Create Task -->
+        <div class="card">
+            <h3 class="card-title">Create New Task</h3>
+            <form id="createTaskForm" onsubmit="createTask(event)">
+                <div class="grid grid-2">
+                    <div class="form-group">
+                        <label class="form-label">Platform</label>
+                        <select id="platform" class="form-control" required>
+                            <option value="tiktok">TikTok</option>
+                            <option value="facebook">Facebook</option>
+                            <option value="instagram">Instagram</option>
+                            <option value="twitter">Twitter</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Task Type</label>
+                        <select id="taskType" class="form-control" required>
+                            <option value="like">Like</option>
+                            <option value="follow">Follow</option>
+                            <option value="comment">Comment</option>
+                            <option value="share">Share</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Link</label>
+                        <input type="url" id="link" class="form-control" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Currency</label>
+                        <select id="currency" class="form-control" required>
+                            <option value="naira">Naira (₦)</option>
+                            <option value="dollar">USDT ($)</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Price</label>
+                        <input type="number" id="price" class="form-control" required min="1" step="0.01">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Max Users</label>
+                        <input type="number" id="maxUsers" class="form-control" required min="1">
+                    </div>
+                </div>
+
+                <button type="submit" class="btn btn-primary">Create Task</button>
+            </form>
+        </div>
+    </div>
+
+    <script src="/static/js/app.js"></script>
+    <script>
+        async function loadStatistics() {
+            const token = localStorage.getItem('token');
+
+            try {
+                const response = await fetch('/api/admin/statistics', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const stats = await response.json();
+
+                document.getElementById('totalUsers').textContent = stats.total_users;
+                document.getElementById('totalTasks').textContent = stats.total_tasks;
+                document.getElementById('completedTasks').textContent = stats.completed_tasks;
+                document.getElementById('pendingSubmissions').textContent = stats.pending_submissions;
+                document.getElementById('pendingWithdrawals').textContent = stats.pending_withdrawals;
+                document.getElementById('totalNaira').textContent = `₦${stats.total_naira.toFixed(0)}`;
+
+            } catch (error) {
+                console.error('Error loading statistics:', error);
+            }
+        }
+
+        async function loadSubmissions() {
+            const token = localStorage.getItem('token');
+
+            try {
+                const response = await fetch('/api/admin/submissions/pending', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await response.json();
+
+                const container = document.getElementById('submissionsContainer');
+
+                if (data.submissions.length === 0) {
+                    container.innerHTML = '<p style="color: #666; text-align: center; padding: 20px;">No pending submissions</p>';
+                    return;
+                }
+
+                container.innerHTML = data.submissions.map(sub => `
+                    <div class="card" style="margin-bottom: 15px;">
+                        <div class="grid grid-2">
+                            <div>
+                                <p><strong>User:</strong> ${sub.user_name} (${sub.user_id})</p>
+                                <p><strong>Platform:</strong> ${sub.platform.toUpperCase()}</p>
+                                <p><strong>Type:</strong> ${sub.task_type.replace('_', ' ')}</p>
+                                <p><strong>Reward:</strong> ${sub.currency === 'naira' ? '₦' : '$'}${sub.price}</p>
+                                <p><strong>Submitted:</strong> ${new Date(sub.submitted_at).toLocaleString()}</p>
+                            </div>
+                            <div>
+                                <img src="/${sub.photo_url}" style="max-width: 100%; border-radius: 8px;" alt="Proof">
+                                <div style="display: flex; gap: 10px; margin-top: 10px;">
+                                    <button class="btn btn-secondary" onclick="approveSubmission('${sub.submission_id}', true)">
+                                        ✅ Approve
+                                    </button>
+                                    <button class="btn btn-danger" onclick="approveSubmission('${sub.submission_id}', false)">
+                                        ❌ Reject
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+
+            } catch (error) {
+                console.error('Error loading submissions:', error);
+            }
+        }
+
+        async function loadWithdrawals() {
+            const token = localStorage.getItem('token');
+
+            try {
+                const response = await fetch('/api/admin/withdrawals/pending', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await response.json();
+
+                const container = document.getElementById('withdrawalsContainer');
+
+                if (data.withdrawals.length === 0) {
+                    container.innerHTML = '<p style="color: #666; text-align: center; padding: 20px;">No pending withdrawals</p>';
+                    return;
+                }
+
+                container.innerHTML = `
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>User</th>
+                                <th>Currency</th>
+                                <th>Amount</th>
+                                <th>Total</th>
+                                <th>Payment Details</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${data.withdrawals.map(w => `
+                                <tr>
+                                    <td>${w.user_name}<br><small>${w.user_id}</small></td>
+                                    <td>${w.currency.toUpperCase()}</td>
+                                    <td>${w.currency === 'naira' ? '₦' : '$'}${w.amount}</td>
+                                    <td>${w.currency === 'naira' ? '₦' : '$'}${w.total}</td>
+                                    <td><small>${w.payment_type}<br>${w.payment_details}</small></td>
+                                    <td>
+                                        <button class="btn btn-secondary" style="font-size: 12px; padding: 5px 10px;" onclick="approveWithdrawal('${w.withdrawal_id}', true)">
+                                            ✅ Approve
+                                        </button>
+                                        <button class="btn btn-danger" style="font-size: 12px; padding: 5px 10px; margin-top: 5px;" onclick="approveWithdrawal('${w.withdrawal_id}', false)">
+                                            ❌ Cancel
+                                        </button>
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                `;
+
+            } catch (error) {
+                console.error('Error loading withdrawals:', error);
+            }
+        }
+
+        async function approveSubmission(submissionId, approved) {
+            const token = localStorage.getItem('token');
+
+            try {
+                const response = await fetch('/api/admin/submissions/approve', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ submission_id: submissionId, approved })
+                });
+
+                if (response.ok) {
+                    alert(approved ? 'Submission approved! ✅' : 'Submission rejected! ❌');
+                    loadSubmissions();
+                    loadStatistics();
+                }
+
+            } catch (error) {
+                alert('Error: ' + error.message);
+            }
+        }
+
+        async function approveWithdrawal(withdrawalId, approved) {
+            const token = localStorage.getItem('token');
+
+            try {
+                const response = await fetch('/api/admin/withdrawals/approve', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ withdrawal_id: withdrawalId, approved })
+                });
+
+                if (response.ok) {
+                    alert(approved ? 'Withdrawal approved! ✅' : 'Withdrawal cancelled! ❌');
+                    loadWithdrawals();
+                    loadStatistics();
+                }
+
+            } catch (error) {
+                alert('Error: ' + error.message);
+            }
+        }
+
+        async function createTask(e) {
+            e.preventDefault();
+            const token = localStorage.getItem('token');
+
+            const taskData = {
+                platform: document.getElementById('platform').value,
+                task_type: document.getElementById('taskType').value,
+                link: document.getElementById('link').value,
+                currency: document.getElementById('currency').value,
+                price: parseFloat(document.getElementById('price').value),
+                max_users: parseInt(document.getElementById('maxUsers').value)
+            };
+
+            try {
+                const response = await fetch('/api/admin/tasks/create', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(taskData)
+                });
+
+                if (response.ok) {
+                    alert('Task created successfully! ✅');
+                    document.getElementById('createTaskForm').reset();
+                    loadStatistics();
+                }
+
+            } catch (error) {
+                alert('Error creating task: ' + error.message);
+            }
+        }
+
+        // Check admin role
+        if (localStorage.getItem('role') !== 'admin') {
+            window.location.href = '/login';
+        }
+
+        loadStatistics();
+        loadSubmissions();
+        loadWithdrawals();
+
+        // Auto refresh every 30 seconds
+        setInterval(() => {
+            loadStatistics();
+            loadSubmissions();
+            loadWithdrawals();
+        }, 30000);
+    </script>
+</body>
+</html>
